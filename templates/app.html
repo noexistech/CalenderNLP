@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Calendar NLP Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .calendar-card, .sidebar-card {
+      background: #020617;
+      border-radius: 1rem;
+      border: 1px solid rgba(148,163,184,0.2);
+      box-shadow: 0 20px 40px rgba(15,23,42,0.9);
+    }
+    .calendar-header {
+      border-bottom: 1px solid rgba(148,163,184,0.25);
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .day-cell {
+      height: 110px;
+      border: 1px solid rgba(30,64,175,0.4);
+      border-radius: 8px;
+      padding: 4px;
+      position: relative;
+      overflow: hidden;
+      background: rgba(15,23,42,0.9);
+      cursor: pointer;
+      transition: background 0.1s ease, transform 0.05s ease;
+    }
+    .day-cell:hover {
+      background: rgba(37,99,235,0.25);
+      transform: translateY(-1px);
+    }
+    .day-number {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .day-today {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.8);
+    }
+    .day-events {
+      position: absolute;
+      top: 25px;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      overflow-y: auto;
+    }
+    .day-events::-webkit-scrollbar {
+      width: 0px;
+    }
+    .event-pill {
+      display: block;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      margin-bottom: 3px;
+      color: #0b1120;
+      font-weight: 500;
+    }
+    .badge-dot {
+      display:inline-block;
+      width:8px;height:8px;border-radius:999px;margin-right:4px;
+    }
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 3000;
+    }
+    .toast {
+      background-color:#020617;
+      color:#e2e8f0;
+      border-radius:0.75rem;
+      border:1px solid rgba(148,163,184,0.5);
+    }
+    .scroll-panel {
+      max-height: 360px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="fw-bold mb-0 text-info">
+        <i class="bi bi-calendar3-week me-2"></i>Calendar NLP
+      </h3>
+      <small class="text-secondary">Nhập câu tiếng Việt để tạo lịch thông minh</small>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+    
+    <button class="btn btn-outline-light">
+        <i class="bi bi-upload me-1"></i>Import JSON
+        <input type="file" id="importJsonFile" hidden="">
+    </button>
+    
+    <button class="btn btn-outline-info" onclick="window.location='/export/ics'">
+        <i class="bi bi-calendar2-week me-1"></i>Xuất ICS
+    </button>
+    
+    <button class="btn btn-outline-warning" onclick="window.location='/export/json'">
+        <i class="bi bi-filetype-json me-1"></i>Xuất JSON
+    </button>
+    
+    <button id="btnAddEvent" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i>Thêm sự kiện
+    </button>
+    
+    <button id="btnSearchToggle" class="btn btn-outline-light">
+        <i class="bi bi-search me-1"></i>Tìm kiếm
+    </button>
+    
+    </div>
+
+  </div>
+
+  <div class="row g-3">
+    <!-- LEFT: CALENDAR -->
+    <div class="col-lg-8">
+      <div class="calendar-card p-3">
+        <div class="d-flex justify-content-between align-items-center calendar-header pb-2 mb-2">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-light" id="btnPrevMonth"><i class="bi bi-chevron-left"></i></button>
+            <button class="btn btn-outline-light" id="btnToday">Hôm nay</button>
+            <button class="btn btn-outline-light" id="btnNextMonth"><i class="bi bi-chevron-right"></i></button>
+          </div>
+          <div class="text-center">
+            <h5 class="fw-semibold mb-0" id="lblCurrentMonth"></h5>
+            <small class="text-secondary" id="lblCurrentRange"></small>
+          </div>
+        </div>
+
+        <table class="table table-dark table-borderless mb-2 align-middle">
+          <thead>
+            <tr class="text-center text-secondary small">
+              <th>Th 2</th><th>Th 3</th><th>Th 4</th><th>Th 5</th><th>Th 6</th><th>Th 7</th><th>CN</th>
+            </tr>
+          </thead>
+        </table>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: SIDEBAR -->
+    <div class="sidebar-card p-3" id="searchPanel" style="display:none;">
+        <h6 class="fw-semibold mb-2">
+          <i class="bi bi-search me-1 text-success"></i> Tìm kiếm sự kiện
+        </h6>
+        <div class="input-group input-group-sm mb-2">
+          <input type="text" id="txtSearch" class="form-control" placeholder="Nhập từ khóa...">
+          <button class="btn btn-outline-info" id="btnSearch"><i class="bi bi-search"></i></button>
+        </div>
+        <div id="searchResultPanel" class="scroll-panel small"></div>
+      </div>
+      
+    <div class="col-lg-4">
+      <div class="sidebar-card p-3 mb-3">
+        <h6 class="fw-semibold mb-2">
+          <i class="bi bi-list-check me-1 text-info"></i> Sự kiện trong ngày
+        </h6>
+        <div id="dayEventsPanel" class="scroll-panel small">
+          <p class="text-secondary mb-0">Chọn một ngày trên lịch để xem chi tiết sự kiện.</p>
+        </div>
+      </div>
+
+      <div class="sidebar-card p-3 mb-3">
+        <h6 class="fw-semibold mb-2">
+          <i class="bi bi-bar-chart-line me-1 text-warning"></i> Thống kê & tuần hiện tại
+        </h6>
+        <div id="statsPanel" class="scroll-panel small">
+          <p class="text-secondary mb-0">Thống kê sẽ hiển thị theo tháng và tuần hiện tại.</p>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Thêm/Sửa qua form NLP & edit manual -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="eventModalLabel">Thêm sự kiện mới</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- NLP input -->
+        <div id="eventModalBodyAdd">
+          <label class="form-label small text-secondary">Nhập câu tiếng Việt</label>
+          <textarea id="txtNatural" class="form-control form-control-sm" rows="3"
+            placeholder="VD: Nhắc tôi họp lớp lúc 1 giờ 20 đêm tuần sau thứ hai ở phòng 302, bế mạc lúc 3 rưỡi, nhắc trước 5 phút"></textarea>
+          <small class="text-secondary d-block mt-1">
+            Hệ thống sẽ phân tích câu và tự động tạo sự kiện.
+          </small>
+        </div>
+        <!-- Edit fields -->
+        <div id="eventModalBodyEdit" style="display:none;">
+          <input type="hidden" id="editEventId">
+          <div class="mb-2">
+            <label class="form-label small">Tên sự kiện</label>
+            <input type="text" id="editEventTitle" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Thời gian bắt đầu (ISO)</label>
+            <input type="text" id="editEventStart" class="form-control form-control-sm" placeholder="2025-12-01T13:00:00">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Thời gian kết thúc (ISO)</label>
+            <input type="text" id="editEventEnd" class="form-control form-control-sm" placeholder="2025-12-01T15:00:00">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Địa điểm</label>
+            <input type="text" id="editEventLocation" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Nhắc trước (phút)</label>
+            <input type="number" id="editEventReminder" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Màu sự kiện</label>
+            <input type="color" id="editEventColor" class="form-control form-control-color" value="#22c55e">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveEvent">Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Xem chi tiết event -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title">Chi tiết sự kiện</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body small" id="eventDetailBody">
+        <!-- nội dung fill bằng JS -->
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-danger btn-sm" id="btnDetailDelete">
+          <i class="bi bi-trash"></i> Xóa
+        </button>
+        <button type="button" class="btn btn-info btn-sm" id="btnDetailEdit">
+          <i class="bi bi-pencil"></i> Sửa
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let currentYear = {{ current_year }};
+  let currentMonth = {{ current_month }};
+  let eventsInMonth = [];
+  let selectedDate = null; // yyyy-mm-dd
+  let eventModal = null;
+  let eventDetailModal = null;
+  let notifiedEvents = new Set();
+  let currentView = "month"; // month / week / day
+
+  document.addEventListener("DOMContentLoaded", () => {
+    eventModal = new bootstrap.Modal(document.getElementById("eventModal"));
+    eventDetailModal = new bootstrap.Modal(document.getElementById("eventDetailModal"));
+
+    document.getElementById("btnPrevMonth").addEventListener("click", () => changeMonth(-1));
+    document.getElementById("btnNextMonth").addEventListener("click", () => changeMonth(1));
+    document.getElementById("btnToday").addEventListener("click", () => goToday());
+
+    document.getElementById("btnAddEvent").addEventListener("click", openAddEventModal);
+    document.getElementById("btnSaveEvent").addEventListener("click", onSaveEvent);
+
+    document.getElementById("btnSearchToggle").addEventListener("click", () => {
+      const pnl = document.getElementById("searchPanel");
+      pnl.style.display = (pnl.style.display === "none" || pnl.style.display === "") ? "block" : "none";
+    });
+    document.getElementById("btnSearch").addEventListener("click", doSearch);
+
+    document.getElementById("btnDetailDelete").addEventListener("click", onDetailDelete);
+    document.getElementById("btnDetailEdit").addEventListener("click", onDetailEdit);
+
+    loadEventsForCurrentMonth();
+
+    // Reminder check: mỗi 60s
+    setInterval(checkReminders, 60000);
+    checkReminders();
+  });
+
+  // =============== LOAD EVENTS ===============
+  function loadEventsForCurrentMonth() {
+    fetch(`/api/events?year=${currentYear}&month=${currentMonth}`)
+      .then(r => r.json())
+      .then(data => {
+        eventsInMonth = data.events || [];
+        renderCalendar();
+        renderStats(data.stats);
+      })
+      .catch(console.error);
+  }
+
+  function renderCalendar() {
+    const lblMonth = document.getElementById("lblCurrentMonth");
+    const lblRange = document.getElementById("lblCurrentRange");
+    const grid = document.getElementById("calendarGrid");
+    grid.innerHTML = "";
+
+    const monthNames = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
+      "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"];
+    lblMonth.textContent = `${monthNames[currentMonth-1]} ${currentYear}`;
+
+    const firstDay = new Date(currentYear, currentMonth-1, 1);
+    const firstWeekday = (firstDay.getDay() + 6) % 7; // Monday=0
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0,10);
+
+    const startDateStr = new Date(currentYear, currentMonth-1, 1).toISOString().slice(0,10);
+    const endDateStr = new Date(currentYear, currentMonth-1, daysInMonth).toISOString().slice(0,10);
+    lblRange.textContent = `${startDateStr} → ${endDateStr}`;
+
+    // Month view: render full 6 weeks
+    let cells = [];
+    for (let i=0;i<firstWeekday;i++) cells.push(0);
+    for (let d=1; d<=daysInMonth; d++) cells.push(d);
+    while (cells.length < 42) cells.push(0);
+
+    cells.forEach(d => {
+      if (d === 0) {
+        let cell = document.createElement("div");
+        cell.className = "day-cell";
+        grid.appendChild(cell);
+      } else {
+        const dateObj = new Date(currentYear, currentMonth-1, d);
+        const dateStr = dateObj.toISOString().slice(0,10);
+        const cellEvents = eventsInMonth.filter(ev => ev.date_str === dateStr);
+
+        let cell = document.createElement("div");
+        cell.className = "day-cell";
+        cell.dataset.date = dateStr;
+        if (dateStr === todayStr) cell.classList.add("day-today");
+
+        let header = document.createElement("div");
+        header.className = "d-flex justify-content-between align-items-center";
+        header.innerHTML = `<span class="day-number">${d}</span>` +
+          (cellEvents.length>0 ? `<span class="badge bg-primary-subtle text-primary border-0 small">${cellEvents.length}</span>` : "");
+        cell.appendChild(header);
+
+        let wrap = document.createElement("div");
+        wrap.className = "day-events";
+        cellEvents.forEach(ev => {
+          let span = document.createElement("span");
+          span.className = "event-pill";
+          span.style.background = ev.color || "#22c55e";
+          span.title = `${ev.time_str || ""} ${ev.event}`;
+          span.textContent = `${ev.time_str || ""} ${ev.event}`;
+          span.onclick = (e) => { e.stopPropagation(); openEventDetail(ev.id); };
+          wrap.appendChild(span);
+        });
+        cell.appendChild(wrap);
+
+        cell.onclick = () => onDayClick(dateStr);
+        grid.appendChild(cell);
+      }
+    });
+
+    // Default selected date
+    if (!selectedDate) {
+      selectedDate = todayStr;
+    }
+    onDayClick(selectedDate, false); // update side panels
+  }
+
+  function onDayClick(dateStr, focus=true) {
+    selectedDate = dateStr;
+    const events = eventsInMonth.filter(ev => ev.date_str === dateStr);
+    const panel = document.getElementById("dayEventsPanel");
+    if (events.length === 0) {
+      panel.innerHTML = `<p class="text-secondary mb-0">Không có sự kiện nào trong ngày ${dateStr}.</p>`;
+      return;
+    }
+    let html = "";
+    events.forEach(ev => {
+      html += `
+        <div class="card bg-transparent border border-secondary mb-2">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-semibold">${ev.event || "(Không tên)"}</div>
+                <div class="small text-secondary">
+                  <i class="bi bi-clock me-1"></i>${ev.time_str || ""} 
+                  ${ev.end_time ? "→ " + ev.end_time.split("T")[1].slice(0,5) : ""}
+                </div>
+                <div class="small text-secondary">
+                  <i class="bi bi-geo-alt me-1"></i>${ev.location || "Không rõ địa điểm"}
+                </div>
+                <div class="small text-secondary">
+                  <i class="bi bi-bell me-1"></i>Nhắc trước: ${ev.reminder_minutes || 0} phút
+                </div>
+              </div>
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-info" onclick="openEditEvent(${ev.id})">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger" onclick="deleteEvent(${ev.id})">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+    panel.innerHTML = html;
+    if (focus) setView("day");
+  }
+
+  // =============== STATS (month + week) ===============
+  function renderStats(stats) {
+    const panel = document.getElementById("statsPanel");
+    if (!stats) {
+      panel.innerHTML = `<p class="text-secondary mb-0">Không có thống kê.</p>`;
+      return;
+    }
+    // tuần hiện tại dựa trên selectedDate
+    let sd = selectedDate ? new Date(selectedDate) : new Date();
+    let isoYear = sd.getFullYear();
+    let isoWeek = getISOWeek(sd);
+
+    let html = "";
+    html += `<div class="mb-1 small">Tổng sự kiện trong tháng: <strong>${stats.total_events}</strong></div>`;
+
+    html += `<div class="mb-1 small fw-semibold">Theo ngày trong tháng:</div><ul class="small">`;
+    for (const [day, count] of Object.entries(stats.by_day || {})) {
+      html += `<li>${day}: <strong>${count}</strong> sự kiện</li>`;
+    }
+    html += `</ul>`;
+
+    html += `<div class="mb-1 small fw-semibold">Theo tuần (ISO):</div><ul class="small">`;
+    for (const [week, count] of Object.entries(stats.by_week || {})) {
+      const highlight = (week === `${isoYear}-W${String(isoWeek).padStart(2,"0")}`) ? ' class="text-info fw-semibold"' : "";
+      html += `<li${highlight}>${week}: <strong>${count}</strong> sự kiện</li>`;
+    }
+    html += `</ul>`;
+
+    // Tổng hợp sự kiện trong tuần hiện tại
+    const weekKey = `${isoYear}-W${String(isoWeek).padStart(2,"0")}`;
+    const weekEvents = eventsInMonth.filter(ev => {
+      if (!ev.start_time) return false;
+      const d = new Date(ev.start_time);
+      return `${d.getFullYear()}-W${String(getISOWeek(d)).padStart(2,"0")}` === weekKey;
+    });
+    html += `<div class="mb-1 small fw-semibold">Sự kiện trong tuần hiện tại (${weekKey}):</div>`;
+    if (weekEvents.length === 0) {
+      html += `<p class="text-secondary small mb-0">Không có sự kiện nào trong tuần.</p>`;
+    } else {
+      html += `<ul class="small">`;
+      weekEvents.forEach(ev => {
+        html += `<li>${ev.date_str} ${ev.time_str || ""} - ${ev.event}</li>`;
+      });
+      html += `</ul>`;
+    }
+
+    panel.innerHTML = html;
+  }
+
+  function getISOWeek(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  }
+
+  // =============== MONTH NAVIGATION ===============
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    loadEventsForCurrentMonth();
+  }
+  function goToday() {
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth() + 1;
+    selectedDate = today.toISOString().slice(0,10);
+    loadEventsForCurrentMonth();
+  }
+
+  // =============== ADD / EDIT / DELETE ===============
+  function openAddEventModal() {
+    document.getElementById("eventModalLabel").textContent = "Thêm sự kiện mới (NLP)";
+    document.getElementById("eventModalBodyAdd").style.display = "block";
+    document.getElementById("eventModalBodyEdit").style.display = "none";
+    document.getElementById("txtNatural").value = "";
+    document.getElementById("btnSaveEvent").dataset.mode = "add";
+    eventModal.show();
+  }
+
+  function openEditEvent(id) {
+    fetch(`/api/events/${id}`)
+      .then(r => r.json())
+      .then(ev => {
+        document.getElementById("eventModalLabel").textContent = "Sửa sự kiện";
+        document.getElementById("eventModalBodyAdd").style.display = "none";
+        document.getElementById("eventModalBodyEdit").style.display = "block";
+
+        document.getElementById("editEventId").value = ev.id;
+        document.getElementById("editEventTitle").value = ev.event || "";
+        document.getElementById("editEventStart").value = ev.start_time || "";
+        document.getElementById("editEventEnd").value = ev.end_time || "";
+        document.getElementById("editEventLocation").value = ev.location || "";
+        document.getElementById("editEventReminder").value = ev.reminder_minutes || 0;
+        document.getElementById("editEventColor").value = ev.color || "#22c55e";
+
+        document.getElementById("btnSaveEvent").dataset.mode = "edit";
+        eventModal.show();
+      });
+  }
+
+  function onSaveEvent() {
+    const mode = document.getElementById("btnSaveEvent").dataset.mode;
+    if (mode === "add") {
+      const text = document.getElementById("txtNatural").value.trim();
+      if (!text) { alert("Vui lòng nhập câu tiếng Việt."); return; }
+      fetch("/api/events", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ natural_text: text })
+      }).then(r=>r.json()).then(res=>{
+        if (res.status==="ok") {
+          eventModal.hide();
+          loadEventsForCurrentMonth();
+        } else {
+          alert("Không thể tạo sự kiện.");
+        }
+      });
+    } else {
+      const id = document.getElementById("editEventId").value;
+      const payload = {
+        event: document.getElementById("editEventTitle").value,
+        start_time: document.getElementById("editEventStart").value || null,
+        end_time: document.getElementById("editEventEnd").value || null,
+        location: document.getElementById("editEventLocation").value,
+        reminder_minutes: parseInt(document.getElementById("editEventReminder").value || "0",10),
+        color: document.getElementById("editEventColor").value || "#22c55e"
+      };
+      fetch(`/api/events/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      }).then(r=>r.json()).then(res=>{
+        if (res.status==="ok") {
+          eventModal.hide();
+          loadEventsForCurrentMonth();
+        } else {
+          alert("Không thể cập nhật sự kiện.");
+        }
+      });
+    }
+  }
+
+  function deleteEvent(id) {
+    if (!confirm("Bạn có chắc chắn muốn xóa sự kiện này?")) return;
+    fetch(`/api/events/${id}`, { method:"DELETE" })
+      .then(r=>r.json()).then(res=>{
+        if (res.status==="ok") {
+          loadEventsForCurrentMonth();
+        }
+      });
+  }
+
+  // =============== DETAIL MODAL ===============
+  let detailEventId = null;
+  function openEventDetail(id) {
+    fetch(`/api/events/${id}`)
+      .then(r=>r.json())
+      .then(ev=>{
+        detailEventId = ev.id;
+        const body = document.getElementById("eventDetailBody");
+        const start = ev.start_time ? ev.start_time.replace("T"," ") : "(không có)";
+        const end = ev.end_time ? ev.end_time.replace("T"," ") : "(không có)";
+        body.innerHTML = `
+          <div class="mb-1"><strong>${ev.event || "(Không tên)"}</strong></div>
+          <div class="small text-secondary mb-1">
+            <i class="bi bi-calendar-event me-1"></i>${ev.date_str || ""} 
+            <i class="bi bi-clock ms-2 me-1"></i>${ev.time_str || ""}</div>
+          <div class="small mb-1"><strong>Bắt đầu:</strong> ${start}</div>
+          <div class="small mb-1"><strong>Kết thúc:</strong> ${end}</div>
+          <div class="small mb-1">
+            <strong>Địa điểm:</strong> ${ev.location || "Không rõ"}</div>
+          <div class="small mb-1">
+            <strong>Nhắc trước:</strong> ${ev.reminder_minutes || 0} phút</div>
+          <div class="small mb-1 d-flex align-items-center">
+            <strong class="me-2">Màu:</strong>
+            <span style="width:16px;height:16px;border-radius:999px;background:${ev.color || "#22c55e"};display:inline-block;"></span>
+          </div>`;
+        eventDetailModal.show();
+      });
+  }
+
+  function onDetailDelete() {
+    if (!detailEventId) return;
+    if (!confirm("Xóa sự kiện này?")) return;
+    deleteEvent(detailEventId);
+    eventDetailModal.hide();
+  }
+
+  function onDetailEdit() {
+    if (!detailEventId) return;
+    eventDetailModal.hide();
+    openEditEvent(detailEventId);
+  }
+
+  // =============== SEARCH ===============
+  function doSearch() {
+    const q = document.getElementById("txtSearch").value.trim();
+    if (!q) {
+      document.getElementById("searchResultPanel").innerHTML =
+        `<p class="text-secondary mb-0">Nhập từ khóa để tìm.</p>`;
+      return;
+    }
+    fetch(`/api/search?q=${encodeURIComponent(q)}`)
+      .then(r=>r.json()).then(data=>{
+        const events = data.events || [];
+        const panel = document.getElementById("searchResultPanel");
+        if (events.length === 0) {
+          panel.innerHTML = `<p class="text-secondary mb-0">Không tìm thấy sự kiện nào.</p>`;
+          return;
+        }
+        let html = "";
+        events.forEach(ev=>{
+          html += `
+            <div class="card bg-transparent border border-secondary mb-2">
+              <div class="card-body p-2 small">
+                <div class="fw-semibold">${ev.event || "(Không tên)"}</div>
+                <div class="text-secondary">
+                  <i class="bi bi-calendar-event me-1"></i>${(ev.start_time||"").split("T")[0] || ""} 
+                  <i class="bi bi-clock ms-2 me-1"></i>${(ev.start_time||"").split("T")[1]?.slice(0,5) || ""}
+                </div>
+                <div class="text-secondary"><i class="bi bi-geo-alt me-1"></i>${ev.location || "Không rõ"}</div>
+                <div class="mt-1">
+                  <button class="btn btn-outline-info btn-sm" onclick="openEditEvent(${ev.id})">
+                    <i class="bi bi-pencil"></i> Sửa
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm" onclick="deleteEvent(${ev.id})">
+                    <i class="bi bi-trash"></i> Xóa
+                  </button>
+                </div>
+              </div>
+            </div>`;
+        });
+        panel.innerHTML = html;
+      });
+  }
+
+  // =============== REMINDERS (POPUP) ===============
+  function checkReminders() {
+    fetch("/api/reminders")
+      .then(r=>r.json())
+      .then(data=>{
+        (data.events || []).forEach(ev=>{
+          const key = ev.id + "|" + (ev.start_time || "");
+          if (notifiedEvents.has(key)) return;
+          notifiedEvents.add(key);
+          showReminderToast(ev);
+        });
+      })
+      .catch(console.error);
+  }
+
+  function showReminderToast(ev) {
+    const container = document.getElementById("toastContainer");
+    const id = "toast_"+ev.id+"_"+Date.now();
+    const html = `
+      <div id="${id}" class="toast mb-2" role="alert">
+        <div class="d-flex">
+          <div class="toast-body small">
+            <div class="fw-semibold mb-1">
+              <span class="badge-dot" style="background:#facc15;"></span>
+              Sắp đến giờ: ${ev.event || "(Không tên)"}
+            </div>
+            <div class="text-secondary">
+              <i class="bi bi-clock me-1"></i>${ev.time_str || ""} - 
+              <i class="bi bi-geo-alt ms-1 me-1"></i>${ev.location || "Không rõ địa điểm"}
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>`;
+    container.insertAdjacentHTML("beforeend", html);
+    const toastEl = document.getElementById(id);
+    const toast = new bootstrap.Toast(toastEl, {delay: 8000});
+    toast.show();
+  }
+
+  document.getElementById("importJsonFile").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const form = new FormData();
+  form.append("file", file);
+
+  fetch("/import/json", {
+    method: "POST",
+    body: form
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.status === "ok") {
+      alert("Import thành công " + res.imported + " sự kiện!");
+      loadEventsForCurrentMonth();
+    } else {
+      alert(res.message);
+    }
+  });
+});
+
+</script>
+</body>
+</html>
