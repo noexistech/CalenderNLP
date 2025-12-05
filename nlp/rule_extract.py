@@ -2,6 +2,7 @@
 import re
 from utils.normalize import normalize_time
 
+
 def extract_rule_based(tokens):
     text = " ".join(tokens)
 
@@ -24,9 +25,11 @@ def extract_rule_based(tokens):
         event = m.group(1).strip() if m else None
 
     # =====================================
-    # 3) LOCATION — pattern-based
+    # 3) LOCATION — pattern-based (CHO PHÉP TIẾNG VIỆT, CẮT ĐẾN DẤU PHẨY / CHẤM)
+    #     Ví dụ: "ở phòng 302, nhắc trước 5 phút"
+    #     -> location = "phòng 302"
     # =====================================
-    loc_match = re.search(r"(?:ở|tại)\s+([a-z0-9_ ]+)", text)
+    loc_match = re.search(r"(?:ở|tại)\s+([^,\.]+)", text)
     location = loc_match.group(1).strip() if loc_match else None
 
     # =====================================
@@ -48,6 +51,10 @@ def extract_rule_based(tokens):
 
     # =====================================
     # 5) RELATIVE TIME
+    #    - Bổ sung dạng số: "thứ 2,3,4,5,6,7"
+    #    - Sau đó chuẩn hóa:
+    #        "thứ 2" -> "thứ hai", ...
+    #        "thứ 7" -> "thứ bảy"
     # =====================================
     relative_regex = (
         r"(sáng mai|chiều mai|tối mai|mai|ngày mai|"
@@ -57,10 +64,26 @@ def extract_rule_based(tokens):
         r"hôm qua|hôm kia|hôm trước|"
         r"tuần sau nữa|tuần tới nữa|tuần sau|tuần tới|tuần này|"
         r"tuần trước nữa|tuần trước|tuần rồi|"
-        r"thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật)"
+        r"thứ hai|thứ ba|thứ tư|thứ năm|thứ sáu|thứ bảy|chủ nhật|"
+        r"thứ 2|thứ 3|thứ 4|thứ 5|thứ 6|thứ 7)"
     )
     relative_terms = re.findall(relative_regex, text)
-    relative = " ".join(relative_terms) if relative_terms else None
+
+    # Chuẩn hóa "thứ 2,3,4,5,6,7" -> "thứ hai, ba, tư, năm, sáu, bảy"
+    weekday_map = {
+        "thứ 2": "thứ hai",
+        "thứ 3": "thứ ba",
+        "thứ 4": "thứ tư",
+        "thứ 5": "thứ năm",
+        "thứ 6": "thứ sáu",
+        "thứ 7": "thứ bảy",
+    }
+    if relative_terms:
+        normalized_terms = [weekday_map.get(t, t) for t in relative_terms]
+        relative_terms = normalized_terms
+        relative = " ".join(relative_terms)
+    else:
+        relative = None
 
     # =====================================
     # 6) PERIOD
@@ -68,7 +91,7 @@ def extract_rule_based(tokens):
     period_regex = r"(sáng|trưa|chiều|tối|đêm)"
     period_matches = list(re.finditer(period_regex, text))
     period_start = period_matches[0].group(1) if period_matches else None
-    period_end   = period_matches[-1].group(1) if period_matches else period_start
+    period_end = period_matches[-1].group(1) if period_matches else period_start
 
     # =====================================
     # 7) REMINDER

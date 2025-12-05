@@ -38,6 +38,7 @@ def extract_ner(text: str):
 
             locations.append(token)
 
+    """
     # -------------------------------------------------
     # 2. RULE-BASED: phòng + số
     # -------------------------------------------------
@@ -60,6 +61,9 @@ def extract_ner(text: str):
     # -------------------------------------------------
     # 4. ƯU TIÊN RULE → loại trùng → giữ cái đúng
     # -------------------------------------------------
+    """
     unique_locations = list(dict.fromkeys(locations))
+    
+    
 
     return {"locations": unique_locations}

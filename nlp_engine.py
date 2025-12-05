@@ -23,10 +23,10 @@ def process_text(text: str):
     text = restore_tone_simple(text)
     print("ADD ACCENTS =", text)
     # ----------------------------------------------------------------------
-    # STEP 1 – NORMALIZE (chuẩn hóa câu để dễ xử lý)
+    # STEP 1 – NORMALIZE FIRST STEP (chuẩn hóa câu để dễ xử lý)
     # ----------------------------------------------------------------------
     normalized = normalize_text(text)
-    print("NORMALIZED =", normalized)
+    print("NORMALIZED FIRST STEP =", normalized)
     # ----------------------------------------------------------------------
     # STEP 2 – TOKENIZE
     # ----------------------------------------------------------------------
@@ -36,9 +36,8 @@ def process_text(text: str):
     # STEP 3 – NER (LOCATION)
     # ----------------------------------------------------------------------
     ner_data = extract_ner(normalized)
-    print("ner_data =", ner_data)
-    location = max(ner_data["locations"], key=len) if ner_data["locations"] else None #Lấy chữ dài nhất
-    print("LOCATION =", location)
+    print("LOCATION FROM NER =", ner_data)
+    
     # ----------------------------------------------------------------------
     # STEP 4 – RULE-BASED EXTRACTION
     # ----------------------------------------------------------------------
@@ -52,10 +51,25 @@ def process_text(text: str):
     period_start = rule.get("period")
     period_end = rule.get("period_end") or period_start
     reminder = rule["reminder_minutes"]
+    
+    location_combined = []
+    
+    if ner_data.get("locations"):
+        location_combined.append(max(ner_data["locations"], key=len) if ner_data["locations"] else "No") #Lấy chữ dài nhất
+    
+    if rule.get("location"):
+        location_combined.append(rule.get("location"))
 
-    # STEP 5 – TIME PARSING
-    # Dùng mảng relative_terms thay vì 1 string
+    print("LOCATION FROM NER AND RULE = ", location_combined)
+
+    location = max(location_combined, key=len)
+    print("LOCATION = ", location)
+
+    # STEP 5 – TIME PARSING 
+    # Dùng mảng relative_terms thay vì 1 string 
     date_obj = normalize_relative_from_terms(relative_terms)
+
+    print("TIME PARSING = ", date_obj)
 
     # Nếu vẫn không parse được → fallback hôm nay
     if date_obj is None:
@@ -74,6 +88,8 @@ def process_text(text: str):
 
     start_time = start_dt.isoformat() if start_dt else None
     end_time = end_dt.isoformat() if end_dt else None
+
+    print("NORMALIZED RALATIVE TIME, MERGE TIME =", "START: ", start_time, "END: " ,end_time)
 
     # STEP 6 – FINAL OUTPUT
     output = build_event_dictionary(

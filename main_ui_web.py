@@ -37,8 +37,11 @@ REMINDER_QUEUE = []
 REMINDER_SENT = set()    # (id, start_time)
 REMINDER_LOCK = threading.Lock()
 
-def debug(*args):
-    print("[REMINDER DEBUG]", *args, flush=True)
+def debug(*args, active = False):
+    if active:
+        print("[REMINDER DEBUG]", *args, flush=True)
+    
+    
 
 def reminder_worker():
     """Thread riêng: mỗi 60s quét DB, tính sự kiện đến giờ nhắc."""
