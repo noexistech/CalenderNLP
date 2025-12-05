@@ -22,10 +22,10 @@ def extract_ner(text: str):
     locations = []
 
     # -------------------------------------------------
-    # 1. LOCATION từ Underthesea nhưng phải lọc blacklist
+    # 1. LOCATION từ Underthesea / B-LOC and I-LOC
     # -------------------------------------------------
     for token, pos, chunk, entity in entities:
-        if entity == "B-LOC":
+        if entity == "B-LOC" or entity == "I-LOC":
             t = token.lower().strip()
 
             # loại bỏ nhầm lẫn
@@ -38,7 +38,7 @@ def extract_ner(text: str):
 
             locations.append(token)
 
-    """
+    """ MOVE TO rule_extract.py
     # -------------------------------------------------
     # 2. RULE-BASED: phòng + số
     # -------------------------------------------------
