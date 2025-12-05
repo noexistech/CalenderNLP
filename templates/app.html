@@ -82,16 +82,21 @@
     }
     .toast-container {
       position: fixed;
-      top: 1rem;
+      top: 5rem;
       right: 1rem;
       z-index: 3000;
     }
+
     .toast {
-      background-color:#020617;
-      color:#e2e8f0;
-      border-radius:0.75rem;
-      border:1px solid rgba(148,163,184,0.5);
+        background-color:#020617;
+        color:#e2e8f0;
+        border-radius:0.75rem;
+        border:1px solid rgba(148,163,184,0.5);
+        min-width: 360px;        /* to hơn */
+        max-width: 420px;
+        font-size: 0.95rem;      /* chữ to hơn chút */
     }
+
     .scroll-panel {
       max-height: 360px;
       overflow-y: auto;
@@ -131,6 +136,10 @@
         <i class="bi bi-search me-1"></i>Tìm kiếm
     </button>
     
+    <button id="btnSettings" class="btn btn-outline-light">
+    <i class="bi bi-gear-fill me-1"></i>Cài đặt
+    </button>
+
     </div>
 
   </div>
@@ -276,9 +285,56 @@
   </div>
 </div>
 
+<!-- Modal: Cài Đặt -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title"><i class="bi bi-gear-wide-connected me-2"></i>Cài đặt hệ thống</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body small">
+        
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="cfgEnableSound">
+          <label class="form-check-label" for="cfgEnableSound">
+            Phát âm thanh khi nhắc nhở
+          </label>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Thời gian lặp lại âm thanh (giây)</label>
+          <input type="number" id="cfgSoundInterval" class="form-control form-control-sm" min="1" value="5">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">API thông báo qua dịch vụ ntfy.sh</label>
+          <input type="text" id="cfgNotifyUrl" class="form-control form-control-sm"
+            placeholder="https://example.com/push">
+        </div>
+
+      </div>
+
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSaveSettings">
+          <i class="bi bi-save me-1"></i>Lưu cài đặt
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<audio id="notifSound" preload="auto">
+  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
 <script>
   let currentYear = {{ current_year }};
   let currentMonth = {{ current_month }};
@@ -312,9 +368,78 @@
     loadEventsForCurrentMonth();
 
     // Reminder check: mỗi 60s
-    setInterval(checkReminders, 60000);
+    setInterval(checkReminders, 10000);
     checkReminders();
   });
+
+  // ============== LOAD SETTING ===============
+let appSettings = {
+    enable_sound: true,
+    sound_interval: 5,
+    notify_url: ""
+};
+
+let settingsModal = null;
+
+document.addEventListener("DOMContentLoaded", () => {
+    settingsModal = new bootstrap.Modal(document.getElementById("settingsModal"));
+
+    document.getElementById("btnSettings").addEventListener("click", openSettingsModal);
+    document.getElementById("btnSaveSettings").addEventListener("click", saveSettings);
+
+    // load lúc khởi động
+    loadSettingsFromServer();
+});
+
+function loadSettingsFromServer() {
+    fetch("/api/settings")
+        .then(r => r.json())
+        .then(cfg => {
+            // Cache
+            appSettings = cfg;
+
+            // Điền vào UI
+            document.getElementById("cfgEnableSound").checked = cfg.enable_sound ?? true;
+            document.getElementById("cfgSoundInterval").value = cfg.sound_interval ?? 5;
+            document.getElementById("cfgNotifyUrl").value = cfg.notify_url ?? "";
+        })
+        .catch(err => console.error("[SETTINGS] Load failed:", err));
+}
+
+function openSettingsModal() {
+    // refresh UI mỗi lần mở modal
+    document.getElementById("cfgEnableSound").checked = appSettings.enable_sound ?? true;
+    document.getElementById("cfgSoundInterval").value = appSettings.sound_interval ?? 5;
+    document.getElementById("cfgNotifyUrl").value = appSettings.notify_url ?? "";
+
+    settingsModal.show();
+}
+
+function saveSettings() {
+    const payload = {
+        enable_sound: document.getElementById("cfgEnableSound").checked,
+        sound_interval: parseInt(document.getElementById("cfgSoundInterval").value || "5", 10),
+        notify_url: document.getElementById("cfgNotifyUrl").value.trim()
+    };
+
+    fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === "ok") {
+                appSettings = payload; // update local cache
+                alert("Đã lưu cài đặt!");
+                settingsModal.hide();
+            } else {
+                alert("Không thể lưu cài đặt.");
+            }
+        })
+        .catch(err => console.error("[SETTINGS] Save failed:", err));
+}
+
 
   // =============== LOAD EVENTS ===============
   function loadEventsForCurrentMonth() {
@@ -692,35 +817,108 @@
           if (notifiedEvents.has(key)) return;
           notifiedEvents.add(key);
           showReminderToast(ev);
+          sendReminderToPhone(ev);
         });
       })
       .catch(console.error);
   }
 
-  function showReminderToast(ev) {
-    const container = document.getElementById("toastContainer");
-    const id = "toast_"+ev.id+"_"+Date.now();
-    const html = `
-      <div id="${id}" class="toast mb-2" role="alert">
-        <div class="d-flex">
-          <div class="toast-body small">
-            <div class="fw-semibold mb-1">
-              <span class="badge-dot" style="background:#facc15;"></span>
-              Sắp đến giờ: ${ev.event || "(Không tên)"}
-            </div>
-            <div class="text-secondary">
-              <i class="bi bi-clock me-1"></i>${ev.time_str || ""} - 
-              <i class="bi bi-geo-alt ms-1 me-1"></i>${ev.location || "Không rõ địa điểm"}
-            </div>
+// =============== SEND REMINDER TO PHONE ===============
+function encodeRFC2047(text) {
+  const utf8Bytes = new TextEncoder().encode(text);
+  const base64 = btoa(String.fromCharCode(...utf8Bytes));
+  return `=?UTF-8?B?${base64}?=`;
+}
+
+function sendReminderToPhone(ev) {
+    if (!appSettings.notify_url || appSettings.notify_url.trim() === "") {
+        console.warn("[NOTIFY] No notify_url configured, skip push.");
+        return;
+    }
+
+    const topic = appSettings.notify_url.replace(/^https?:\/\//, "").trim();  
+    // ví dụ topic = "ntfy.sh/nlpnotify_server_demo123"
+
+    const apiUrl = `https://${topic}`;
+    const title = `Chú ý: ${ev.event}`;
+    const body  = `${ev.event} - ${ev.time_str} - ${ev.location || "Không rõ địa điểm"}`;
+
+    fetch(apiUrl, {
+        method: "POST",
+        headers: {
+            "Title": encodeRFC2047(title),
+            "Priority": "high",
+            "Tags": "alarm_clock",
+            "Content-Type": "text/plain"
+        },
+        body: body
+    })
+    .then(() => console.log("[NOTIFY] Sent to phone:", apiUrl))
+    .catch(err => console.error("[NOTIFY] Error:", err));
+}
+
+function showReminderToast(ev) {
+  const container = document.getElementById("toastContainer");
+  const id = "toast_"+ev.id+"_"+Date.now();
+
+  const html = `
+    <div id="${id}" class="toast mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body small">
+          <div class="fw-semibold mb-1">
+            <span class="badge-dot" style="background:#facc15;"></span>
+            🔔 Sắp đến giờ: ${ev.event || "(Không tên)"}
           </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          <div class="text-secondary">
+            <i class="bi bi-clock me-1"></i>${ev.time_str || ""}
+            <span class="ms-2"><i class="bi bi-geo-alt me-1"></i>${ev.location || "Không rõ địa điểm"}</span>
+          </div>
         </div>
-      </div>`;
-    container.insertAdjacentHTML("beforeend", html);
-    const toastEl = document.getElementById(id);
-    const toast = new bootstrap.Toast(toastEl, {delay: 8000});
-    toast.show();
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>`;
+
+  container.insertAdjacentHTML("beforeend", html);
+
+  const toastEl = document.getElementById(id);
+  const toast = new bootstrap.Toast(toastEl, { autohide: false });
+
+  // Lấy setting
+  const enableSound = appSettings.enable_sound ?? true;
+  const soundInterval = parseInt(appSettings.sound_interval || "5", 10);
+  const notifyUrl = appSettings.notify_url || "";
+
+  // Âm thanh
+  const audioEl = document.getElementById("notifSound");
+
+  function playSound() {
+    if (!enableSound) return;
+
+    try {
+      audioEl.currentTime = 0;
+      audioEl.play().catch(()=>{});
+    } catch (e) {
+      console.warn("Cannot play sound:", e);
+    }
   }
+
+  // 1) Phát tiếng lần đầu
+  playSound();
+
+  // 2) Lặp âm thanh dựa trên cài đặt
+  let intervalId = null;
+  if (enableSound && soundInterval > 0) {
+    intervalId = setInterval(playSound, soundInterval * 1000);
+  }
+
+  // 3) Khi toast đóng → stop sound loop
+  toastEl.addEventListener("hidden.bs.toast", () => {
+    if (intervalId) clearInterval(intervalId);
+  });
+
+
+  toast.show();
+}
 
   document.getElementById("importJsonFile").addEventListener("change", function () {
   const file = this.files[0];

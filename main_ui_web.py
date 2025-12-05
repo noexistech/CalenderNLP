@@ -1,23 +1,31 @@
 # main_ui_web.py
 
+import json
 import threading
 import time
 from datetime import datetime, timedelta, date
+
+from zoneinfo import ZoneInfo
 
 from flask import Flask, request, jsonify, render_template
 
 from nlp_engine import process_text
 from storage.database import (
+    init_settings,
     init_db,
     list_events,
     get_event,
+    load_settings,
     save_event_to_db,
+    save_setting,
     update_event,
     delete_event,
     search_events,
     get_events_for_month,
     get_stats_for_month,
 )
+
+TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 # ==============================
 # REMINDER THREAD
@@ -27,39 +35,81 @@ REMINDER_QUEUE = []
 REMINDER_SENT = set()    # (id, start_time)
 REMINDER_LOCK = threading.Lock()
 
+def debug(*args):
+    print("[REMINDER DEBUG]", *args, flush=True)
+
 def reminder_worker():
     """Thread riêng: mỗi 60s quét DB, tính sự kiện đến giờ nhắc."""
     while True:
         try:
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+            debug("===== NEW LOOP =====")
+            debug("Current time:", now)
+
             events = list_events()
+            debug("Total events fetched:", len(events))
+
             with REMINDER_LOCK:
                 for ev in events:
+
+                    debug("\n--- Checking event ---")
+                    debug("Event ID:", ev.get("id"))
+                    debug("Event title:", ev.get("event"))
+                    debug("Start time:", ev.get("start_time"))
+                    debug("Reminder minutes:", ev.get("reminder_minutes"))
+
                     st = ev.get("start_time")
                     if not st:
+                        debug("-> Skipped: No start_time")
                         continue
+
                     rm = ev.get("reminder_minutes") or 0
                     if rm <= 0:
+                        debug("-> Skipped: reminder_minutes <= 0")
                         continue
+                    
                     try:
                         start_dt = datetime.fromisoformat(st)
-                    except Exception:
+                        if start_dt.tzinfo is None:
+                            start_dt = start_dt.replace(tzinfo=TZ)  # GÁN TZ CHUẨN
+                        else:
+                            start_dt = start_dt.astimezone(TZ)
+
+                    except Exception as e:
+                        print("[REMINDER DEBUG] ERROR parsing datetime:", e)
                         continue
+
                     reminder_dt = start_dt - timedelta(minutes=rm)
                     diff = (now - reminder_dt).total_seconds()
-                    if 0 <= diff <= 60:  # trong 60s vừa qua
+
+                    debug("Parsed start_dt:", start_dt)
+                    debug("Computed reminder_dt:", reminder_dt)
+                    debug("Time diff (seconds):", diff)
+
+                    # Check trigger window
+                    if 0 <= diff <= 60:
                         key = (ev["id"], st)
+                        debug("Trigger window hit! Key:", key)
+
                         if key not in REMINDER_SENT:
+                            debug("-> New reminder! Sending.")
                             REMINDER_SENT.add(key)
-                            # thêm info để hiển thị toast
+
                             ev["reminder_time"] = reminder_dt.isoformat()
                             ev["date_str"] = start_dt.date().isoformat()
                             ev["time_str"] = start_dt.strftime("%H:%M")
+
                             REMINDER_QUEUE.append(ev)
-        except Exception:
-            # tránh crash thread
-            pass
-        time.sleep(60)  # check mỗi 60 giây
+                        else:
+                            debug("-> Already sent earlier, skip.")
+                    else:
+                        debug("-> Not in reminder window.")
+
+        except Exception as e:
+            debug("!!! ERROR in reminder_worker loop:", e)
+
+        debug("===== SLEEP 10s =====\n")
+        time.sleep(10)
 
 def get_due_reminders():
     with REMINDER_LOCK:
@@ -73,6 +123,7 @@ def get_due_reminders():
 
 app = Flask(__name__)
 init_db()
+init_settings()
 
 # Khởi động thread nhắc nhở
 rem_thread = threading.Thread(target=reminder_worker, daemon=True)
@@ -84,7 +135,7 @@ rem_thread.start()
 
 @app.route("/")
 def index():
-    today = datetime.now()
+    today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
     return render_template(
         "app.html",
         current_year=today.year,
@@ -94,8 +145,8 @@ def index():
 @app.route("/api/events", methods=["GET", "POST"])
 def api_events():
     if request.method == "GET":
-        year = int(request.args.get("year", datetime.now().year))
-        month = int(request.args.get("month", datetime.now().month))
+        year = int(request.args.get("year", datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).year))
+        month = int(request.args.get("month", datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).month))
         events = get_events_for_month(year, month)
         stats = get_stats_for_month(year, month)
         return jsonify({"events": events, "stats": stats})
@@ -250,6 +301,24 @@ def import_json():
             continue
 
     return jsonify({"status": "ok", "imported": imported})
+
+@app.get("/api/settings")
+def api_get_settings():
+    cfg = load_settings()
+    return jsonify({
+        "enable_sound": cfg.get("enable_sound", True),
+        "sound_interval": cfg.get("sound_interval", 5),
+        "notify_url": cfg.get("notify_url", "")
+    })
+
+@app.post("/api/settings")
+def api_save_settings():
+    data = request.json
+    save_setting("enable_sound", json.dumps(data.get("enable_sound", True)))
+    save_setting("sound_interval", json.dumps(data.get("sound_interval", 5)))
+    save_setting("notify_url", json.dumps(data.get("notify_url", "")))
+    return jsonify({"status": "ok"})
+
 
 # ==============================
 # MAIN

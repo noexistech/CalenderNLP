@@ -1,4 +1,5 @@
 # storage/database.py
+import json
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -44,6 +45,33 @@ def init_db():
             pass
 
     conn.close()
+
+def init_settings():
+    conn = sqlite3.connect("events.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS settings(
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_setting(key, value):
+    conn = sqlite3.connect("events.db")
+    c = conn.cursor()
+    c.execute("REPLACE INTO settings(key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+def load_settings():
+    conn = sqlite3.connect("events.db")
+    c = conn.cursor()
+    c.execute("SELECT key, value FROM settings")
+    rows = c.fetchall()
+    conn.close()
+    return {k: json.loads(v) for k, v in rows}
 
 
 def row_to_dict(row: sqlite3.Row):
