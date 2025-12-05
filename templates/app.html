@@ -243,12 +243,12 @@
             <input type="text" id="editEventTitle" class="form-control form-control-sm">
           </div>
           <div class="mb-2">
-            <label class="form-label small">Thời gian bắt đầu (ISO)</label>
-            <input type="text" id="editEventStart" class="form-control form-control-sm" placeholder="2025-12-01T13:00:00">
+            <label class="form-label small">Thời gian bắt đầu</label>
+            <input type="datetime-local" id="editEventStart" class="form-control form-control-sm">
           </div>
           <div class="mb-2">
-            <label class="form-label small">Thời gian kết thúc (ISO)</label>
-            <input type="text" id="editEventEnd" class="form-control form-control-sm" placeholder="2025-12-01T15:00:00">
+            <label class="form-label small">Thời gian kết thúc</label>
+            <input type="datetime-local" id="editEventEnd" class="form-control form-control-sm">
           </div>
           <div class="mb-2">
             <label class="form-label small">Địa điểm</label>
@@ -475,7 +475,8 @@ function saveSettings() {
     lblMonth.textContent = `${monthNames[currentMonth-1]} ${currentYear}`;
 
     const firstDay = new Date(currentYear, currentMonth-1, 1);
-    const firstWeekday = (firstDay.getDay() + 6) % 7; // Monday=0
+    let firstWeekday = firstDay.getDay(); 
+    if (firstWeekday === 0) firstWeekday = 6; else firstWeekday -= 1;
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
     const today = new Date();
     const todayStr = today.toISOString().slice(0,10);
@@ -497,7 +498,9 @@ function saveSettings() {
         grid.appendChild(cell);
       } else {
         const dateObj = new Date(currentYear, currentMonth-1, d);
-        const dateStr = dateObj.toISOString().slice(0,10);
+        const dateStr = dateObj.getFullYear() + "-" +
+                String(dateObj.getMonth()+1).padStart(2,"0") + "-" +
+                String(dateObj.getDate()).padStart(2,"0");
         const cellEvents = eventsInMonth.filter(ev => ev.date_str === dateStr);
 
         let cell = document.createElement("div");
@@ -661,6 +664,13 @@ function saveSettings() {
     eventModal.show();
   }
 
+function formatForInput(dt) {
+    if (!dt) return "";
+    const d = new Date(dt);  // dt là ISO có timezone GMT+7
+    const pad = x => String(x).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
   function openEditEvent(id) {
     fetch(`/api/events/${id}`)
       .then(r => r.json())
@@ -671,8 +681,8 @@ function saveSettings() {
 
         document.getElementById("editEventId").value = ev.id;
         document.getElementById("editEventTitle").value = ev.event || "";
-        document.getElementById("editEventStart").value = ev.start_time || "";
-        document.getElementById("editEventEnd").value = ev.end_time || "";
+        document.getElementById("editEventStart").value = formatForInput(ev.start_time) || "";
+        document.getElementById("editEventEnd").value = formatForInput(ev.end_time) || "";
         document.getElementById("editEventLocation").value = ev.location || "";
         document.getElementById("editEventReminder").value = ev.reminder_minutes || 0;
         document.getElementById("editEventColor").value = ev.color || "#22c55e";

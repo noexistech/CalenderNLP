@@ -5,6 +5,8 @@ import threading
 import time
 from datetime import datetime, timedelta, date
 
+from utils.datetime_helper import parse_iso, parse_user_datetime, iso, to_local, TZ
+
 from zoneinfo import ZoneInfo
 
 from flask import Flask, request, jsonify, render_template
@@ -71,12 +73,11 @@ def reminder_worker():
                     try:
                         start_dt = datetime.fromisoformat(st)
                         if start_dt.tzinfo is None:
-                            start_dt = start_dt.replace(tzinfo=TZ)  # GÁN TZ CHUẨN
+                            start_dt = start_dt.replace(tzinfo=TZ)
                         else:
                             start_dt = start_dt.astimezone(TZ)
-
                     except Exception as e:
-                        print("[REMINDER DEBUG] ERROR parsing datetime:", e)
+                        debug("ERROR parsing datetime:", e)
                         continue
 
                     reminder_dt = start_dt - timedelta(minutes=rm)
@@ -160,6 +161,20 @@ def api_events():
     parsed = process_text(text)
     # thêm color mặc định
     parsed["color"] = "#22c55e"
+    # Force timezone GMT+7 cho start_time / end_time
+
+    for key in ("start_time", "end_time"):
+        if parsed.get(key):
+            try:
+                dt = datetime.fromisoformat(parsed[key])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=TZ)
+                else:
+                    dt = dt.astimezone(TZ)
+                parsed[key] = dt.isoformat()
+            except:
+                pass
+
     save_event_to_db(parsed)
     return jsonify({"status": "ok", "parsed": parsed})
 
@@ -184,8 +199,8 @@ def api_event_detail(event_id):
     if request.method == "PUT":
         data = request.get_json() or {}
         ev["event"] = data.get("event", ev["event"])
-        ev["start_time"] = data.get("start_time", ev["start_time"])
-        ev["end_time"] = data.get("end_time", ev["end_time"])
+        ev["start_time"] = fix_to_vn_tz(data.get("start_time", ev["start_time"]))
+        ev["end_time"] = fix_to_vn_tz(data.get("end_time", ev["end_time"]))
         ev["location"] = data.get("location", ev["location"])
         ev["reminder_minutes"] = data.get("reminder_minutes", ev["reminder_minutes"])
         ev["color"] = data.get("color", ev.get("color") or "#22c55e")
@@ -196,6 +211,20 @@ def api_event_detail(event_id):
         delete_event(event_id)
         return jsonify({"status":"ok"})
 
+def fix_to_vn_tz(dt_str):
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(dt_str)
+        if dt.tzinfo is None:
+            # Datetime do frontend gửi phải được hiểu là giờ Việt Nam
+            dt = dt.replace(tzinfo=TZ)
+        else:
+            dt = dt.astimezone(TZ)
+        return dt.isoformat()
+    except:
+        return dt_str
+    
 @app.route("/api/search")
 def api_search():
     q = request.args.get("q","")
