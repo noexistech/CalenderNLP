@@ -9,7 +9,7 @@ from flask import Flask, request, jsonify, render_template
 from nlp_engine import process_text
 from storage.database import (init_settings,init_db,list_events,get_event,load_settings,save_event_to_db,save_setting,update_event,delete_event,search_events,get_events_for_month,get_stats_for_month)
 
-TZ = TZ
+TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 # ==============================
 # REMINDER THREAD
