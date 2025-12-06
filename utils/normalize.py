@@ -14,11 +14,13 @@ WEEKDAY_MAP = {
 }
 
 def normalize_text(text: str):
-    #Lower case toàn bộ text input
+    # Lower case toàn bộ text input
     t = text.lower()
 
-    #Dùng underthesea để loại bỏ khoảng trắng, các trường hợp input nhưng sai dấu
+    # Dùng underthesea để loại bỏ khoảng trắng, các trường hợp input nhưng sai dấu
     t = text_normalize(t)
+
+    # --- TIME NORMALIZATION ---
 
     # Case: 10 giờ 30 → 10:30
     t = re.sub(r"(\d{1,2})\s*giờ\s*(\d{1,2})", r"\1:\2", t)
@@ -29,23 +31,22 @@ def normalize_text(text: str):
     # Case: 10h 30 → 10:30
     t = re.sub(r"(\d{1,2})h\s*(\d{1,2})", r"\1:\2", t)
 
-    # Case: 10 giờ → 10:00
-    t = re.sub(r"(\d{1,2})\s*giờ", r"\1:00", t)
-
-    # Case: 10h → 10:00
-    t = re.sub(r"(\d{1,2})h", r"\1:00", t)
+    # 💡 XỬ LÝ "GIỜ RƯỠI" TRƯỚC
+    # Case: 3 giờ rưỡi → 3:30
+    t = re.sub(r"(\d{1,2})\s*giờ\s*rưỡi", r"\1:30", t)
 
     # Case: 3 rưỡi → 3:30
     t = re.sub(r"(\d{1,2})\s*rưỡi", r"\1:30", t)
 
-    # Case: 3 giờ rưỡi → 3:30
-    t = re.sub(r"(\d{1,2})\s*giờ\s*rưỡi", r"\1:30", t)
+    # Sau khi đã xử lý hết "rưỡi" thì mới xử lý "giờ" / "h" trống phút
 
-    # Case: 3 giờ  rưỡi  (thừa khoảng trắng)
-    t = re.sub(r"(\d{1,2})\s*giờ\s*rưỡi", r"\1:30", t)
+    # Case: 10 giờ → 10:00 (nhưng KHÔNG phải "10 giờ rưỡi")
+    t = re.sub(r"(\d{1,2})\s*giờ(?!\s*rưỡi)", r"\1:00", t)
 
-    # === Chuẩn hóa ngày trong tuần (thứ 7 -> thứ bảy) ===
-    # Dùng \b để đảm bảo chỉ khớp với từ độc lập (word boundary)
+    # Case: 10h → 10:00 (nhưng KHÔNG phải "10h30")
+    t = re.sub(r"(\d{1,2})h(?!\d)", r"\1:00", t)
+
+    # === Chuẩn hóa ngày trong tuần ===
     t = re.sub(r"\bcn\b", "chủ nhật", t)
     t = re.sub(r"\bthứ\s+2\b", "thứ hai", t)
     t = re.sub(r"\bthứ\s+3\b", "thứ ba", t)
@@ -55,6 +56,7 @@ def normalize_text(text: str):
     t = re.sub(r"\bthứ\s+7\b", "thứ bảy", t)
 
     return t
+
 
 def normalize_time(t):
     t = t.strip()

@@ -71,10 +71,8 @@ def process_text(text: str):
         elif isinstance(rule_location, str):
             location_combined.append(rule_location)
 
-    print("LOCATION FROM NER AND RULE = ", location_combined)
-
     location = max(location_combined, key=len) if location_combined else None
-    print("LOCATION =", location)
+    print("LOCATION FROM NER AND RULE = ", location_combined, " =>>> FINAL LOCATION =", location)
 
     # STEP 5 – TIME PARSING
     # Ưu tiên 1: Xử lý ngày tháng cụ thể (ngày 17 tháng 12)
