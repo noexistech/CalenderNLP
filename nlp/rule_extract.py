@@ -2,6 +2,19 @@
 import re
 from utils.normalize import normalize_time
 
+BAD_LOCATIONS = [
+    "nhóm", "nhom",
+    "tuần",
+    "lớp", "lop",
+    "đội", "doi",
+    "ban",
+    "tổ", "to",
+    "họp", "hop",
+    "làm", "lam",
+    "gặp", "gap",
+    "lúc", "luc",
+    "09", "9", "10", "11",
+]
 
 def extract_rule_based(tokens):
     text = " ".join(tokens)
@@ -29,21 +42,41 @@ def extract_rule_based(tokens):
     # =====================================
     # 2) EVENT — chỉ lấy trước start_time đầu tiên
     # =====================================
-    event = None
-    if start_match:
-        before = text[:start_match.start()]
-        m = re.search(r"nhắc tôi (.+)", before)
-        if not m:
-            m = re.search(r"nhắc (.+)", before)
-        event = m.group(1).strip() if m else None
+    # = None
+    #if start_match:
+    #    before = text[:start_match.start()]
+    #    m = re.search(r"nhắc tôi (.+)", before)
+    #    if not m:
+    #       m = re.search(r"nhắc (.+)", before)
+    #    event = m.group(1).strip() if m else None
 
     # =====================================
-    # 3) LOCATION — pattern-based (CHO PHÉP TIẾNG VIỆT, CẮT ĐẾN DẤU PHẨY / CHẤM)
+    # 3) LOCATION — pattern-based
     #     Ví dụ: "ở phòng 302, nhắc trước 5 phút"
     #     -> location = "phòng 302"
     # =====================================
-    loc_match = re.search(r"(?:ở|tại)\s+([^,\.]+)", text)
-    location = loc_match.group(1).strip() if loc_match else None
+    #loc_pattern = r"((?:ở|tại)\s+[^,]+?)(?:,\s*(?:lúc|vào)?)?(?=\s+(?:lúc|vào|ngày|thứ|kết thúc|tan|hết)|$)"
+    loc_pattern = r"((?:ở|tại)\s+[^,]+?)(?=,|\s+(?:lúc|vào|ngày|thứ|kết thúc|tan|hết)|$)"
+    loc_match = re.search(loc_pattern, text)
+
+    locations = []
+
+    # Cho phép phòng có tên bằng chữ hoặc số (phòng 101, phòng A)
+    # \w+ sẽ khớp với chữ, số và dấu gạch dưới
+    room = re.search(r"phòng\s+\w+", text.lower())
+    if room:
+        locations.append(room.group())
+
+    # Cải tiến: Dừng lại khi gặp các từ khóa thời gian (lúc, vào, ngày, thứ,...)
+    at_match = re.search(r"(tại|ở)\s+([^,]+?)(?=\s+(?:lúc|vào|ngày|thứ)|$)", text.lower())
+    if at_match:
+        raw = at_match.group(2).strip()
+
+        # Không cần split(",") nữa vì regex đã xử lý
+        if raw not in BAD_LOCATIONS:
+            locations.append(raw)
+
+    unique_locations = list(dict.fromkeys(locations))
 
     # =====================================
     # 4) END TIME (multi-keywords, named groups)
@@ -140,7 +173,7 @@ def extract_rule_based(tokens):
 
     return {
         "event": event,
-        "location": location,
+        "location": unique_locations,
         "time_raw": time_raw_start,
         "time_raw_end": time_raw_end,
         "relative": relative,

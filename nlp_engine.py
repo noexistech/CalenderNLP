@@ -55,31 +55,38 @@ def process_text(text: str):
     
     location_combined = []
     
-    if ner_data.get("locations"):
-        location_combined.append(max(ner_data["locations"], key=len) if ner_data["locations"] else "No") #Lấy chữ dài nhất
-    
-    if rule.get("location"):
-        location_combined.append(rule.get("location"))
+    # Thêm toàn bộ LOCATION từ Model-based nếu có
+    ner_locations = ner_data.get("locations")
+    if ner_locations:
+        if isinstance(ner_locations, list):
+            location_combined.extend(ner_locations)
+        elif isinstance(ner_locations, str):
+            location_combined.append(ner_locations)
 
-    print("LOCATION FROM NER AND RULE = ", location_combined)
+    # Thêm toàn bộ LOCATION từ Rule-based nếu có
+    rule_location = rule.get("location")
+    if rule_location:
+        if isinstance(rule_location, list):
+            location_combined.extend(rule_location)
+        elif isinstance(rule_location, str):
+            location_combined.append(rule_location)
 
     location = max(location_combined, key=len) if location_combined else None
-    print("LOCATION = ", location)
+    print("LOCATION FROM NER AND RULE = ", location_combined, " =>>> FINAL LOCATION =", location)
 
     # STEP 5 – TIME PARSING
     # Ưu tiên 1: Xử lý ngày tháng cụ thể (ngày 17 tháng 12)
     date_obj = normalize_specific_date(specific_date_parts)
     
-    # STEP 5 – TIME PARSING 
-    # Dùng mảng relative_terms thay vì 1 string 
-    date_obj = normalize_relative_from_terms(relative_terms)
-
-    print("TIME PARSING = ", date_obj)
+    # Ưu tiên 2: Nếu không có ngày cụ thể, xử lý thời gian tương đối (ngày mai, tuần sau)
+    if date_obj is None:
+        date_obj = normalize_relative_from_terms(relative_terms)
 
     # Nếu vẫn không parse được → fallback hôm nay
     if date_obj is None:
         date_obj = datetime.now()
-
+    
+    print("TIME PARSING = ", date_obj)
     # Start datetime
     start_dt = merge_time(date_obj, time_raw_start, period_start)
 
