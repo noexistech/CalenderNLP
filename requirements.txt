@@ -1,5 +1,0 @@
-flask
-underthesea
-gunicorn
-requests
-python-dateutil
