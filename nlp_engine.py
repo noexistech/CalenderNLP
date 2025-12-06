@@ -1,6 +1,6 @@
 # nlp_engine.py
 
-from utils.normalize import normalize_text, normalize_relative_time, merge_time, normalize_relative_from_terms
+from utils.normalize import normalize_text, merge_time, normalize_relative_from_terms, normalize_specific_date
 from nlp.preprocess import preprocess
 from nlp.ner_extract import extract_ner
 from nlp.rule_extract import extract_rule_based
@@ -48,6 +48,7 @@ def process_text(text: str):
     time_raw_start = rule["time_raw"]
     time_raw_end = rule.get("time_raw_end")
     relative_terms = rule.get("relative_terms", [])
+    specific_date_parts = rule.get("specific_date_parts")
     period_start = rule.get("period")
     period_end = rule.get("period_end") or period_start
     reminder = rule["reminder_minutes"]
@@ -65,6 +66,10 @@ def process_text(text: str):
     location = max(location_combined, key=len)
     print("LOCATION = ", location)
 
+    # STEP 5 – TIME PARSING
+    # Ưu tiên 1: Xử lý ngày tháng cụ thể (ngày 17 tháng 12)
+    date_obj = normalize_specific_date(specific_date_parts)
+    
     # STEP 5 – TIME PARSING 
     # Dùng mảng relative_terms thay vì 1 string 
     date_obj = normalize_relative_from_terms(relative_terms)

@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 from underthesea import text_normalize
 
 WEEKDAY_MAP = {
-    "thứ hai": 0,
-    "thứ ba": 1,
-    "thứ tư": 2,
-    "thứ năm": 3,
-    "thứ sáu": 4,
-    "thứ bảy": 5,
-    "chủ nhật": 6,
+    "thứ hai": 0, "thứ 2": 0,
+    "thứ ba": 1, "thứ 3": 1,
+    "thứ tư": 2, "thứ 4": 2,
+    "thứ năm": 3, "thứ 5": 3,
+    "thứ sáu": 4, "thứ 6": 4,
+    "thứ bảy": 5, "thứ 7": 5,
+    "chủ nhật": 6, "cn": 6, # Thêm "cn" cho "chủ nhật" nếu cần
 }
 
 def normalize_text(text: str):
@@ -43,6 +43,16 @@ def normalize_text(text: str):
 
     # Case: 3 giờ  rưỡi  (thừa khoảng trắng)
     t = re.sub(r"(\d{1,2})\s*giờ\s*rưỡi", r"\1:30", t)
+
+    # === Chuẩn hóa ngày trong tuần (thứ 7 -> thứ bảy) ===
+    # Dùng \b để đảm bảo chỉ khớp với từ độc lập (word boundary)
+    t = re.sub(r"\bcn\b", "chủ nhật", t)
+    t = re.sub(r"\bthứ\s+2\b", "thứ hai", t)
+    t = re.sub(r"\bthứ\s+3\b", "thứ ba", t)
+    t = re.sub(r"\bthứ\s+4\b", "thứ tư", t)
+    t = re.sub(r"\bthứ\s+5\b", "thứ năm", t)
+    t = re.sub(r"\bthứ\s+6\b", "thứ sáu", t)
+    t = re.sub(r"\bthứ\s+7\b", "thứ bảy", t)
 
     return t
 
@@ -146,7 +156,9 @@ def normalize_relative_time(raw_text: str):
     elif "tuần trước" in text or "tuần rồi" in text:
         week_offset = -1
     elif "tuần này" in text:
-        week_offset = 0
+        # Nếu chỉ có "tuần này" mà không có "thứ", thì nên trả về ngày hôm nay
+        if not any(day in text for day in WEEKDAY_MAP.keys()):
+            return today
 
     # Nếu có thứ + tuần (ví dụ: "thứ hai tuần sau nữa")
     for key, weekday_index in WEEKDAY_MAP.items():
@@ -161,10 +173,12 @@ def normalize_relative_time(raw_text: str):
 
     # === Thứ trong tuần (thứ hai → chủ nhật) ===
     for key, weekday_index in WEEKDAY_MAP.items():
+        # Logic này chỉ nên chạy nếu không có từ khóa tuần nào được chỉ định
         if key in text:
             current_wd = today.weekday()
             diff = weekday_index - current_wd
-            if diff <= 0:
+            # Nếu ngày đó đã qua trong tuần này, thì lấy ngày đó của tuần tới.
+            if diff < 0:
                 diff += 7
             return today + timedelta(days=diff)
 
@@ -230,6 +244,22 @@ def merge_time(date_obj, time_raw: str, period_word: str = None):
 
     return date_obj.replace(hour=hour, minute=minute, second=0)
 
+def normalize_specific_date(date_parts):
+    """
+    Chuyển đổi các phần ngày, tháng, năm đã trích xuất thành đối tượng datetime.
+    Ví dụ: {'day': '17', 'month': '12', 'year': '2025'} -> datetime(2025, 12, 17)
+    """
+    if not date_parts or not date_parts.get('day'):
+        return None
 
+    now = datetime.now()
+    try:
+        day = int(date_parts['day'])
+        # Nếu không có tháng, dùng tháng hiện tại
+        month = int(date_parts['month']) if date_parts.get('month') else now.month
+        # Nếu không có năm, dùng năm hiện tại
+        year = int(date_parts['year']) if date_parts.get('year') else now.year
 
-
+        return datetime(year, month, day)
+    except (ValueError, TypeError):
+        return None

@@ -38,32 +38,6 @@ def extract_ner(text: str):
 
             locations.append(token)
 
-    """ MOVE TO rule_extract.py
-    # -------------------------------------------------
-    # 2. RULE-BASED: phòng + số
-    # -------------------------------------------------
-    room = re.search(r"phòng\s+\d+", text.lower())
-    if room:
-        locations.append(room.group())
-
-    # -------------------------------------------------
-    # 3. RULE-BASED: sau từ “tại" hoặc "ở"
-    # -------------------------------------------------
-    at_match = re.search(r"(tại|ở)\s+([a-zA-ZÀ-ỹ0-9\s]+)", text.lower())
-    if at_match:
-        raw = at_match.group(2).strip()
-
-        raw = raw.split(",")[0]
-
-        if raw not in BAD_LOCATIONS:
-            locations.append(raw)
-
-    # -------------------------------------------------
-    # 4. ƯU TIÊN RULE → loại trùng → giữ cái đúng
-    # -------------------------------------------------
-    """
     unique_locations = list(dict.fromkeys(locations))
-    
-    
-
+      
     return {"locations": unique_locations}
