@@ -63,7 +63,7 @@ def process_text(text: str):
 
     print("LOCATION FROM NER AND RULE = ", location_combined)
 
-    location = max(location_combined, key=len)
+    location = max(location_combined, key=len) if location_combined else None
     print("LOCATION = ", location)
 
     # STEP 5 – TIME PARSING
