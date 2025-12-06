@@ -1,17 +1,22 @@
 from nlp_engine import process_text
 
 tests = [
-    "Nhắc tôi chiều ngày kia đi tập thể dục ở công viên Hoàng Văn Thụ lúc 5h, nhắc trước 30 phút",
-    "Nhắc tôi sáng ngày 2 tháng 1 năm 2026 đi họp lớp ở phòng c103 lúc 8h , nhắc trước 50 phút",
-    "Nhắc tôi sáng mai dậy tập thể dục lúc 7 giờ 15 ở công viên Hoàng Văn Thụ",
-    "Nhắc tôi Cafe sáng cn tuần sau nữa với nhóm bạn cấp 3 ở Highland coffee",
-    "Nhắc tôi đi tắt bếp sau 15 phút, nhắc trước 1 phút.",
-    "nhắc tôi tối nay nhậu tại quán ốc đào lúc 11h , nhắc trước 60 phút.",
-    "nhắc tôi tối nay lúc 11h nhậu tại quán ốc đào, nhắc trước 60 phút.",
-    "Nhắc tôi họp lớp lúc 9 giờ ở phòng 302"
+    "Nhắc tôi tuần sau đi học lúc 7h vào thứ 3 ở phòng 102, nhắc trước 60 phut",
+    "Nhắc tôi về quê sáng mốt",
+    "Nhắc tôi có suất phim chiếu 12h đêm nay, nhắn trước 30 phút",
+    "Ca trực đêm lúc 2h sáng mai.",
+    "Nhắc tôi nộp bài tập tối nay lúc 23h50 trên sgu moodle.",
+    "Ở sân SGU, nhắc tôi đá bóng chiều thứ 7 tuần sau lúc 17h.",
+    "Nhắc tôi Thứ 2 tuần sau đi làm lại.",
+    "Nhac toi di da banh san Thong Nhat chieu thu 5 tuan sau.",
+    "Nhắc tôi sau 30 phút nữa gọi cho mẹ.",
+    "Nhắc tôi 7 giờ sáng ngày 31 tháng 12 năm 2025 thi ở phòng c205 tại Đại Học Sài Gòn",
+    "Nhắc tôi Đi bảo hành xe chiều tối hôm nay.",
+    "Nhắc tôi đi tập gym vào sáng mai",
 ]
 
 for i, text in enumerate(tests, start=1):
     print(f"\n===== TEST {i} =====")
     print("INPUT :", text)
-    print("OUTPUT:", process_text(text))
+    output = process_text(text)
+    print("OUTPUT:", output)

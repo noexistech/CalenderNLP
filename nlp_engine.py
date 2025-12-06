@@ -12,38 +12,19 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 def process_text(text: str):
-    """
-    Pipeline NLP 5 bước theo đúng yêu cầu thầy:
-    1. Normalize (chuẩn hóa tiếng Việt)
-    2. Preprocess (tokenize)
-    3. NER: nhận LOCATION
-    4. Rule-based: event, time_raw, relative, reminder
-    5. Parse time & Validate final dictionary
-    """
-    # ----------------------------------------------------------------------
     # STEP 0 – ADD ACCENTS (Thêm dấu câu đơn giản nếu câu đó bị thiếu dấu)
-    # ----------------------------------------------------------------------
     text = restore_tone_simple(text)
     print("ADD ACCENTS =", text)
-    # ----------------------------------------------------------------------
     # STEP 1 – NORMALIZE FIRST STEP (chuẩn hóa câu để dễ xử lý)
-    # ----------------------------------------------------------------------
     normalized = normalize_text(text)
     print("NORMALIZED FIRST STEP =", normalized)
-    # ----------------------------------------------------------------------
     # STEP 2 – TOKENIZE
-    # ----------------------------------------------------------------------
     tokens = preprocess(normalized)
     print("TOKENS =", tokens)
-    # ----------------------------------------------------------------------
     # STEP 3 – NER (LOCATION)
-    # ----------------------------------------------------------------------
     ner_data = extract_ner(normalized)
     print("LOCATION FROM NER =", ner_data)
-    
-    # ----------------------------------------------------------------------
     # STEP 4 – RULE-BASED EXTRACTION
-    # ----------------------------------------------------------------------
     rule = extract_rule_based(tokens)
     print("RULE =", rule)
     # ---- DELAY TIME HANDLING ----

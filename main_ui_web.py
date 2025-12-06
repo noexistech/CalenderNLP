@@ -4,30 +4,12 @@ import json
 import threading
 import time
 from datetime import datetime, timedelta, date
-
-#from utils.datetime_helper import parse_iso, parse_user_datetime, iso, to_local, TZ
-
 from zoneinfo import ZoneInfo
-
 from flask import Flask, request, jsonify, render_template
-
 from nlp_engine import process_text
-from storage.database import (
-    init_settings,
-    init_db,
-    list_events,
-    get_event,
-    load_settings,
-    save_event_to_db,
-    save_setting,
-    update_event,
-    delete_event,
-    search_events,
-    get_events_for_month,
-    get_stats_for_month,
-)
+from storage.database import (init_settings,init_db,list_events,get_event,load_settings,save_event_to_db,save_setting,update_event,delete_event,search_events,get_events_for_month,get_stats_for_month)
 
-TZ = ZoneInfo("Asia/Ho_Chi_Minh")
+TZ = TZ
 
 # ==============================
 # REMINDER THREAD
@@ -44,10 +26,9 @@ def debug(*args, active = False):
     
 
 def reminder_worker():
-    """Thread riêng: mỗi 60s quét DB, tính sự kiện đến giờ nhắc."""
     while True:
         try:
-            now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+            now = datetime.now(TZ)
             debug("===== NEW LOOP =====")
             debug("Current time:", now)
 
@@ -139,7 +120,7 @@ rem_thread.start()
 
 @app.route("/")
 def index():
-    today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+    today = datetime.now(TZ)
     return render_template(
         "app.html",
         current_year=today.year,
@@ -149,8 +130,8 @@ def index():
 @app.route("/api/events", methods=["GET", "POST"])
 def api_events():
     if request.method == "GET":
-        year = int(request.args.get("year", datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).year))
-        month = int(request.args.get("month", datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).month))
+        year = int(request.args.get("year", datetime.now(TZ).year))
+        month = int(request.args.get("month", datetime.now(TZ).month))
         events = get_events_for_month(year, month)
         stats = get_stats_for_month(year, month)
         return jsonify({"events": events, "stats": stats})
