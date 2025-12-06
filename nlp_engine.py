@@ -55,16 +55,26 @@ def process_text(text: str):
     
     location_combined = []
     
-    if ner_data.get("locations"):
-        location_combined.append(max(ner_data["locations"], key=len) if ner_data["locations"] else "No") #Lấy chữ dài nhất
-    
-    if rule.get("location"):
-        location_combined.append(rule.get("location"))
+    # Thêm toàn bộ LOCATION từ Model-based nếu có
+    ner_locations = ner_data.get("locations")
+    if ner_locations:
+        if isinstance(ner_locations, list):
+            location_combined.extend(ner_locations)
+        elif isinstance(ner_locations, str):
+            location_combined.append(ner_locations)
+
+    # Thêm toàn bộ LOCATION từ Rule-based nếu có
+    rule_location = rule.get("location")
+    if rule_location:
+        if isinstance(rule_location, list):
+            location_combined.extend(rule_location)
+        elif isinstance(rule_location, str):
+            location_combined.append(rule_location)
 
     print("LOCATION FROM NER AND RULE = ", location_combined)
 
     location = max(location_combined, key=len) if location_combined else None
-    print("LOCATION = ", location)
+    print("LOCATION =", location)
 
     # STEP 5 – TIME PARSING
     # Ưu tiên 1: Xử lý ngày tháng cụ thể (ngày 17 tháng 12)
