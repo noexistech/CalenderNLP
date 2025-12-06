@@ -357,5 +357,5 @@ def api_save_settings():
 # ==============================
 
 if __name__ == "__main__":
-    # nên để debug=False để tránh tạo 2 thread reminder khi dùng reloader
-    app.run(debug=False)
+    # Chỉ định port 8080 
+    app.run(debug=False, host="0.0.0.0", port=8080)
