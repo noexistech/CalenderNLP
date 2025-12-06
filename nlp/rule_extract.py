@@ -55,8 +55,9 @@ def extract_rule_based(tokens):
     #     Ví dụ: "ở phòng 302, nhắc trước 5 phút"
     #     -> location = "phòng 302"
     # =====================================
-    loc_match = re.search(r"(?:ở|tại)\s+([^,\.]+)", text)
-    
+    loc_pattern = r"((?:ở|tại)\s+[^,]+?)(?:,\s*(?:lúc|vào)?)?(?=\s+(?:lúc|vào|ngày|thứ|kết thúc|tan|hết)|$)"
+    loc_match = re.search(loc_pattern, text)
+
     locations = []
 
     # Cho phép phòng có tên bằng chữ hoặc số (phòng 101, phòng A)
