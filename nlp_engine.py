@@ -80,16 +80,15 @@ def process_text(text: str):
     # Ưu tiên 1: Xử lý ngày tháng cụ thể (ngày 17 tháng 12)
     date_obj = normalize_specific_date(specific_date_parts)
     
-    # STEP 5 – TIME PARSING 
-    # Dùng mảng relative_terms thay vì 1 string 
-    date_obj = normalize_relative_from_terms(relative_terms)
-
-    print("TIME PARSING = ", date_obj)
+    # Ưu tiên 2: Nếu không có ngày cụ thể, xử lý thời gian tương đối (ngày mai, tuần sau)
+    if date_obj is None:
+        date_obj = normalize_relative_from_terms(relative_terms)
 
     # Nếu vẫn không parse được → fallback hôm nay
     if date_obj is None:
         date_obj = datetime.now()
-
+    
+    print("TIME PARSING = ", date_obj)
     # Start datetime
     start_dt = merge_time(date_obj, time_raw_start, period_start)
 
