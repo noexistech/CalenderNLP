@@ -68,9 +68,10 @@ def extract_rule_based(tokens):
         locations.append(room.group())
 
     # Cải tiến: Dừng lại khi gặp các từ khóa thời gian (lúc, vào, ngày, thứ,...)
-    at_match = re.search(r"(tại|ở)\s+([^,]+?)(?=\s+(?:lúc|vào|ngày|thứ)|$)", text.lower())
+    at_match = re.search(
+        r"(?:tại|ở)\s+([^,]+?)(?=,|\s+(?:lúc|vào|ngày|thứ|kết thúc|tan|hết)|$)",text.lower())
     if at_match:
-        raw = at_match.group(2).strip()
+        raw = at_match.group(1).strip()
 
         # Không cần split(",") nữa vì regex đã xử lý
         if raw not in BAD_LOCATIONS:
@@ -145,6 +146,22 @@ def extract_rule_based(tokens):
     reminder_match = re.search(r"nhắc trước (\d+) phút", text)
     reminder_minutes = int(reminder_match.group(1)) if reminder_match else 0
 
+    # 8) DELAY TIME: "sau X phút", "sau X giờ", "sau X ngày"
+    delay_minutes = None
+    delay_hours = None
+    delay_days = None
+
+    m_min = re.search(r"sau\s+(\d+)\s*phút", text)
+    m_hour = re.search(r"sau\s+(\d+)\s*giờ", text)
+    m_day  = re.search(r"sau\s+(\d+)\s*ngày", text)
+
+    if m_min:
+        delay_minutes = int(m_min.group(1))
+    if m_hour:
+        delay_hours = int(m_hour.group(1))
+    if m_day:
+        delay_days = int(m_day.group(1))
+
     # =====================================
     # 2) EVENT (- Loại bỏ hết và sự kiện còn lại cuối cùng)
     # =====================================
@@ -167,6 +184,11 @@ def extract_rule_based(tokens):
     if period_start: event_text = event_text.replace(period_start, "")
     if period_end: event_text = event_text.replace(period_end, "")
 
+    # Bỏ mấy từ sau X phút, X giờ, X ngày
+    if m_min: event_text = event_text.replace(m_min.group(0), "")
+    if m_hour: event_text = event_text.replace(m_hour.group(0), "")
+    if m_day: event_text = event_text.replace(m_day.group(0), "")
+
     # Dọn dẹp cuối cùng: xóa các dấu câu thừa và khoảng trắng
     event_text = re.sub(r"[,.]", "", event_text)
     event = re.sub(r"\s+", " ", event_text).strip()
@@ -182,4 +204,7 @@ def extract_rule_based(tokens):
         "period": period_start,
         "period_end": period_end,
         "reminder_minutes": reminder_minutes,
+        "delay_minutes": delay_minutes,
+        "delay_hours": delay_hours,
+        "delay_days": delay_days
     }

@@ -7,6 +7,9 @@ from nlp.rule_extract import extract_rule_based
 from nlp.validator import build_event_dictionary
 from datetime import datetime, timedelta
 from utils.restore_tone_simple import restore_tone_simple
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 
 def process_text(text: str):
     """
@@ -43,6 +46,28 @@ def process_text(text: str):
     # ----------------------------------------------------------------------
     rule = extract_rule_based(tokens)
     print("RULE =", rule)
+    # ---- DELAY TIME HANDLING ----
+    now = datetime.now(TZ)
+    delay_total = None
+    
+    if rule.get("delay_minutes"):
+        delay_total = now + timedelta(minutes=rule["delay_minutes"])
+    elif rule.get("delay_hours"):
+        delay_total = now + timedelta(hours=rule["delay_hours"])
+    elif rule.get("delay_days"):
+        delay_total = now + timedelta(days=rule["delay_days"])
+
+    if delay_total:
+        # gán trực tiếp start_time
+        start_dt = delay_total
+        end_dt = None   # delay không có end time
+        return {
+            "event": rule["event"],
+            "start_time": start_dt.isoformat(),
+            "end_time": None,
+            "location": rule.get("location"),
+            "reminder_minutes": rule.get("reminder_minutes", 0)
+        }
 
     event = rule["event"]
     time_raw_start = rule["time_raw"]
