@@ -222,29 +222,52 @@ def convert_hour_with_period(hour: int, period: str):
     return hour
 
 def merge_time(date_obj, time_raw: str, period_word: str = None):
-    if not date_obj or not time_raw:
+    if not date_obj:
         return None
 
+    # === CASE 1: Có buổi (sáng/trưa/chiều/tối) nhưng KHÔNG có time_raw ===
+    if not time_raw and period_word:
+        # Giờ mặc định theo buổi
+        defaults = {
+            "sáng": (7, 0),
+            "trưa": (12, 0),
+            "chiều": (17, 0),
+            "tối": (20, 0),
+            "đêm": (23, 0)
+        }
+
+        for key, (h, m) in defaults.items():
+            if key in period_word:
+                return date_obj.replace(hour=h, minute=m, second=0)
+
+        # Nếu có period_word nhưng không match → trả về 8:00 sáng mặc định
+        return date_obj.replace(hour=8, minute=0, second=0)
+
+    # === CASE 2: Không có time_raw và cũng không period_word → không xử lý được ===
+    if not time_raw:
+        return None
+
+    # === CASE 3: Có time_raw → xử lý như cũ ===
     hour, minute = map(int, time_raw.split(":"))
 
     # Nếu giờ > 12 mà người dùng vẫn ghi sáng / trưa / chiều / tối → bỏ period
-    # Vì 14 giờ chiều, 18 giờ sáng, 13 giờ trưa… đều không hợp lệ.
     if period_word and hour > 12:
         period_word = None
 
-    # === SPECIAL CASE: 12 giờ sáng ===
+    # SPECIAL CASE: 12 giờ sáng
     if period_word and "sáng" in period_word and hour == 12:
         return date_obj.replace(hour=12, minute=minute, second=0)
 
-    # === SPECIAL CASE: 12 giờ tối ===
+    # SPECIAL CASE: 12 giờ tối
     if period_word and "tối" in period_word and hour == 12:
         return date_obj.replace(hour=0, minute=minute, second=0)
 
-    # === NORMAL CASE USING PERIOD ===
+    # NORMAL CASE USING PERIOD
     if period_word:
         hour = convert_hour_with_period(hour, period_word)
 
     return date_obj.replace(hour=hour, minute=minute, second=0)
+
 
 def normalize_specific_date(date_parts):
     """
