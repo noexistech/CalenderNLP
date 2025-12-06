@@ -34,7 +34,11 @@ Vietnamese NLP Smart Calendar là hệ thống AI hiểu câu tiếng Việt t�
 ## ✨ Demo UI  
 
 <img width="1920" height="752" alt="image" src="https://github.com/user-attachments/assets/d5c2ad94-d6db-4b0b-9600-f3915bb3096b" />
-
+<img width="826" height="304" alt="image" src="https://github.com/user-attachments/assets/40b03cfe-97a1-4d41-98f1-d2ea7b417e6d" />
+<img width="532" height="346" alt="image" src="https://github.com/user-attachments/assets/8cfef0ce-84cd-4c37-a40b-6ab146eebe64" />
+<img width="830" height="597" alt="image" src="https://github.com/user-attachments/assets/2d4b1142-b37b-47ce-8261-7df8fd8f82c2" />
+<img width="534" height="380" alt="image" src="https://github.com/user-attachments/assets/a35c85bc-80dd-42bd-8fa2-5514ce34aab4" />
+<img width="644" height="240" alt="image" src="https://github.com/user-attachments/assets/da41ce99-cd8e-4703-bcc8-bdd8e5ef8676" />
 
 ---
 
